@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Employee Archive Manager</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/tesseract.js/4.1.1/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Source+Serif+4:wght@600;700&display=swap');
+:root{
+  --navy:#0f2942; --navy2:#16395c; --gold:#b8860b; --gold2:#d4a017;
+  --blue:#1d4ed8; --blue-l:#eff6ff;
+  --bg:#f4f6f9; --surface:#ffffff; --surface2:#f8fafc; --border:#dde3ec; --border2:#c7d0de;
+  --text:#1a2433; --text2:#5b6778; --text3:#94a0b3;
+  --green:#15803d; --green-l:#ecfdf3; --red:#b91c1c; --red-l:#fef2f2; --yellow:#a16207; --yellow-l:#fefce8;
+  --r:10px; --shadow:0 1px 3px rgba(15,41,66,.08), 0 1px 2px rgba(15,41,66,.04);
+  --shadow-md:0 4px 14px rgba(15,41,66,.1);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;font-size:14px}
+
+.letterhead{background:linear-gradient(135deg,var(--navy) 0%,var(--navy2) 100%);color:#fff;position:relative;overflow:hidden}
+.letterhead::after{content:'';position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,var(--gold),var(--gold2),var(--gold))}
+.letterhead-inner{max-width:1280px;margin:0 auto;padding:16px 24px;display:flex;align-items:center;gap:14px}
+.seal{width:42px;height:42px;border-radius:50%;background:linear-gradient(135deg,var(--gold2),var(--gold));display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0;box-shadow:0 2px 8px rgba(0,0,0,.25)}
+.lh-titles{flex:1}
+.lh-org{font-family:'Source Serif 4',serif;font-size:18px;font-weight:700;letter-spacing:.01em}
+.lh-sub{font-size:11px;color:rgba(255,255,255,.65);letter-spacing:.04em;margin-top:1px;text-transform:uppercase}
+
+.navbar{background:var(--surface);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:100;box-shadow:var(--shadow)}
+.navbar-inner{max-width:1280px;margin:0 auto;padding:0 24px;display:flex;gap:2px;overflow-x:auto}
+.nav-tab{padding:13px 16px;font-size:13px;font-weight:600;cursor:pointer;border:none;background:transparent;color:var(--text2);white-space:nowrap;border-bottom:3px solid transparent;transition:all .15s;display:flex;align-items:center;gap:6px}
+.nav-tab:hover{color:var(--navy);background:var(--surface2)}
+.nav-tab.active{color:var(--navy);border-bottom-color:var(--gold);font-weight:700}
+
+.main{max-width:1280px;margin:0 auto;padding:24px}
+.panel{display:none}.panel.active{display:block;animation:fadeIn .2s ease}
+@keyframes fadeIn{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:20px;margin-bottom:16px;box-shadow:var(--shadow)}
+.card-title{font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--navy);margin-bottom:14px;display:flex;align-items:center;gap:7px}
+.card-title-line{flex:1;height:1px;background:var(--border)}
+
+.stats-row{display:grid;grid-template-columns:repeat(5,1fr);gap:12px;margin-bottom:18px}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--shadow);position:relative;overflow:hidden}
+.stat-card::before{content:'';position:absolute;top:0;left:0;width:4px;height:100%;background:var(--bar)}
+.stat-num{font-size:24px;font-weight:800;color:var(--navy);line-height:1}
+.stat-lbl{font-size:10.5px;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-top:5px;font-weight:600}
+.stat-icon{position:absolute;top:14px;right:14px;font-size:20px;opacity:.5}
+
+.import-zone{background:linear-gradient(180deg,#fff,var(--surface2));border:2px dashed var(--border2);border-radius:14px;padding:36px 24px;text-align:center;margin-bottom:18px;transition:.2s}
+.import-zone.dragover{border-color:var(--blue);background:var(--blue-l)}
+.import-icon{font-size:42px;margin-bottom:10px}
+.import-title{font-size:17px;font-weight:700;color:var(--navy);margin-bottom:5px}
+.import-sub{font-size:13px;color:var(--text2);margin-bottom:20px;max-width:520px;margin-left:auto;margin-right:auto;line-height:1.5}
+.import-btn-row{display:flex;gap:10px;justify-content:center;flex-wrap:wrap}
+.import-types{display:flex;gap:8px;justify-content:center;margin-top:16px;flex-wrap:wrap}
+.import-type-chip{font-size:10.5px;background:var(--surface);border:1px solid var(--border);padding:4px 10px;border-radius:20px;color:var(--text2);font-weight:600}
+
+.cam-wrap{position:relative;width:100%;max-width:460px;margin:16px auto 0;display:none;border-radius:10px;overflow:hidden;box-shadow:var(--shadow-md)}
+.cam-wrap.show{display:block}
+#camera-video{width:100%;display:block;background:#000}
+.cam-overlay{position:absolute;inset:0;pointer-events:none}
+.cam-frame{position:absolute;top:22%;left:8%;right:8%;bottom:22%;border:2px solid var(--gold2);border-radius:6px;box-shadow:0 0 0 9999px rgba(0,0,0,.5)}
+.cam-hint{position:absolute;bottom:8px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;font-size:11px;padding:4px 12px;border-radius:20px;white-space:nowrap}
+#cam-canvas,#pdf-canvas{display:none}
+
+.proc-status{font-size:12.5px;color:var(--yellow);margin-top:12px;min-height:18px;font-weight:600}
+.proc-result{font-size:13px;color:var(--green);margin-top:4px;font-weight:700}
+
+.extract-preview{background:var(--blue-l);border:1px solid #bfdbfe;border-radius:10px;padding:14px 16px;margin-bottom:16px;display:none}
+.extract-preview.show{display:block}
+.extract-preview-title{font-size:11px;font-weight:700;color:var(--blue);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px}
+.extract-field{display:inline-flex;align-items:center;gap:5px;background:#fff;border:1px solid #bfdbfe;border-radius:6px;padding:4px 10px;margin:3px 5px 3px 0;font-size:12px}
+.extract-field b{color:var(--navy)}
+.extract-field .ignored{color:var(--text3);text-decoration:line-through}
+
+.btn{padding:10px 18px;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;border:none;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:6px}
+.btn-navy{background:var(--navy);color:#fff}.btn-navy:hover{background:var(--navy2)}
+.btn-gold{background:linear-gradient(135deg,var(--gold2),var(--gold));color:#fff}.btn-gold:hover{opacity:.92}
+.btn-green{background:var(--green);color:#fff}.btn-green:hover{background:#136531}
+.btn-outline{background:#fff;border:1px solid var(--border2);color:var(--text2)}.btn-outline:hover{border-color:var(--navy);color:var(--navy)}
+.btn-red{background:var(--red);color:#fff}.btn-red:hover{background:#991b1b}
+.btn-sm{padding:6px 12px;font-size:12px}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+
+.form-card{background:var(--surface);border:1px solid var(--blue);border-radius:var(--r);padding:22px;margin-bottom:16px;display:none;box-shadow:var(--shadow-md)}
+.form-card.show{display:block}
+.form-header{display:flex;align-items:center;gap:10px;margin-bottom:18px;padding-bottom:14px;border-bottom:1px solid var(--border)}
+.form-header-title{font-size:15px;font-weight:700;color:var(--navy)}
+.source-badge{background:var(--blue);color:#fff;padding:3px 11px;border-radius:20px;font-size:10.5px;font-weight:700;letter-spacing:.03em}
+
+.fileid-group{background:linear-gradient(135deg,#fef9ec,#fff);border:1.5px solid var(--gold2);border-radius:10px;padding:16px;margin-bottom:14px}
+.fileid-group-title{font-size:11px;font-weight:700;color:var(--gold);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.fileid-row{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.fileid-note{font-size:11px;color:var(--text2);margin-top:8px;text-align:center;font-style:italic}
+
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px}
+.form-full{grid-column:1/-1}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.04em}
+.form-label .req{color:var(--red)}
+.form-input,.form-select,.form-textarea{background:#fff;border:1px solid var(--border2);border-radius:7px;padding:10px 12px;font-size:13.5px;color:var(--text);font-family:'Inter',sans-serif;outline:none;transition:border-color .15s,box-shadow .15s;width:100%}
+.form-textarea{min-height:68px;resize:vertical}
+.form-input:focus,.form-select:focus,.form-textarea:focus{border-color:var(--blue);box-shadow:0 0 0 3px var(--blue-l)}
+.ax-input{border-color:#1d4ed8 !important}
+.sap-input{border-color:#7c3aed !important}
+.form-actions{display:flex;gap:10px;margin-top:18px;justify-content:flex-end;padding-top:14px;border-top:1px solid var(--border)}
+
+.toolbar{display:flex;gap:8px;margin-bottom:14px;flex-wrap:wrap;align-items:center}
+.search-box{flex:1;min-width:200px;background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:10px 14px;font-size:13px;outline:none}
+.search-box:focus{border-color:var(--blue)}
+.filter-sel{background:var(--surface);border:1px solid var(--border2);border-radius:8px;padding:10px 11px;font-size:12.5px;cursor:pointer;outline:none}
+
+.table-wrap{overflow-x:auto;border-radius:8px}
+table{width:100%;border-collapse:collapse;font-size:12.5px}
+thead th{text-align:left;padding:11px 12px;font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:#fff;background:var(--navy);white-space:nowrap}
+thead th:first-child{border-radius:6px 0 0 0}
+thead th:last-child{border-radius:0 6px 0 0}
+tbody tr{border-bottom:1px solid var(--border);transition:background .1s}
+tbody tr:nth-child(even){background:var(--surface2)}
+tbody tr:hover{background:var(--blue-l)}
+tbody td{padding:10px 12px;vertical-align:middle}
+.fid{font-family:'SF Mono',Consolas,monospace;font-weight:700;font-size:11.5px;color:var(--blue);background:var(--blue-l);padding:2px 7px;border-radius:5px;display:inline-block}
+.fid.sap{color:#7c3aed;background:#f5f3ff}
+.tag{display:inline-block;padding:3px 10px;border-radius:20px;font-size:10.5px;font-weight:700;letter-spacing:.02em}
+.tag-eos{background:var(--red-l);color:var(--red)}
+.tag-active{background:var(--green-l);color:var(--green)}
+.tag-pending{background:var(--yellow-l);color:var(--yellow)}
+.tag-resigned{background:#f1f5f9;color:var(--text2)}
+.tag-terminated{background:#fee2e2;color:#991b1b}
+.row-actions{display:flex;gap:5px}
+
+.empty{text-align:center;padding:48px 20px;color:var(--text3)}
+.empty-icon{font-size:46px;margin-bottom:10px;opacity:.6}
+.empty-text{font-size:14px;font-weight:600;color:var(--text2)}
+
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(15,41,66,.55);z-index:300;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(2px)}
+.modal-overlay.open{display:flex}
+.modal{background:var(--surface);border-radius:14px;padding:24px;width:100%;max-width:600px;max-height:92vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,.3)}
+.modal-title{font-size:16px;font-weight:700;color:var(--navy);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+
+.box-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(190px,1fr));gap:12px}
+.box-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;text-align:center;transition:all .15s;box-shadow:var(--shadow)}
+.box-card:hover{border-color:var(--blue);transform:translateY(-2px);box-shadow:var(--shadow-md)}
+.box-icon{font-size:30px;margin-bottom:8px}
+.box-name{font-size:13.5px;font-weight:700;color:var(--navy)}
+.box-loc{font-size:11.5px;color:var(--text2);margin-top:3px}
+.box-count{display:inline-block;margin-top:9px;background:var(--navy);color:#fff;padding:3px 11px;border-radius:20px;font-size:11px;font-weight:700}
+
+.toast-wrap{position:fixed;bottom:20px;right:20px;z-index:999;display:flex;flex-direction:column;gap:8px}
+.toast{background:var(--navy);color:#fff;border-left:4px solid var(--gold2);border-radius:8px;padding:12px 16px;font-size:13px;font-weight:500;animation:slideIn .25s ease;max-width:320px;box-shadow:var(--shadow-md)}
+.toast.err{border-left-color:var(--red);background:#7f1d1d}
+@keyframes slideIn{from{transform:translateX(16px);opacity:0}to{transform:translateX(0);opacity:1}}
+
+.export-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.export-card{background:var(--surface2);border:1px solid var(--border);border-radius:var(--r);padding:22px;text-align:center}
+.export-card-icon{font-size:38px;margin-bottom:8px}
+.export-card-title{font-size:15px;font-weight:700;color:var(--navy);margin-bottom:5px}
+.export-card-sub{font-size:12px;color:var(--text2);margin-bottom:16px}
+
+.hidden-input{display:none}
+
+@media(max-width:780px){
+  .stats-row{grid-template-columns:1fr 1fr}
+  .form-grid{grid-template-columns:1fr}
+  .fileid-row{grid-template-columns:1fr}
+  .export-grid{grid-template-columns:1fr}
+  .nav-tab span.lbl{display:none}
+  .lh-org{font-size:15px}
+}
+</style>
+</head>
+<body>
+
+<div class="letterhead">
+  <div class="letterhead-inner">
+    <div class="seal">🗂️</div>
+    <div class="lh-titles">
+      <div class="lh-org">Employee File Archive Management System</div>
+      <div class="lh-sub">Official Record-Keeping &amp; Retrieval System</div>
+    </div>
+  </div>
+</div>
+
+<div class="navbar">
+  <div class="navbar-inner">
+    <button class="nav-tab active" onclick="gotoPanel('dashboard')">📊 <span class="lbl">Dashboard</span></button>
+    <button class="nav-tab" onclick="gotoPanel('scan')">📥 <span class="lbl">Add / Import</span></button>
+    <button class="nav-tab" onclick="gotoPanel('records')">📁 <span class="lbl">Records</span></button>
+    <button class="nav-tab" onclick="gotoPanel('boxes')">📦 <span class="lbl">Boxes</span></button>
+    <button class="nav-tab" onclick="gotoPanel('export')">🖨️ <span class="lbl">Print / Export</span></button>
+  </div>
+</div>
+
+<div class="main">
+
+<div class="panel active" id="panel-dashboard">
+  <div class="stats-row">
+    <div class="stat-card" style="--bar:#1d4ed8"><div class="stat-icon">📁</div><div class="stat-num" id="s-total">0</div><div class="stat-lbl">Total Files</div></div>
+    <div class="stat-card" style="--bar:#7c3aed"><div class="stat-icon">📦</div><div class="stat-num" id="s-boxes">0</div><div class="stat-lbl">Boxes</div></div>
+    <div class="stat-card" style="--bar:#b91c1c"><div class="stat-icon">🔴</div><div class="stat-num" id="s-eos">0</div><div class="stat-lbl">EOS Files</div></div>
+    <div class="stat-card" style="--bar:#15803d"><div class="stat-icon">🟢</div><div class="stat-num" id="s-active">0</div><div class="stat-lbl">Active Files</div></div>
+    <div class="stat-card" style="--bar:#a16207"><div class="stat-icon">🏢</div><div class="stat-num" id="s-branch">0</div><div class="stat-lbl">Branches</div></div>
+  </div>
+  <div class="card">
+    <div class="card-title">Recent Records <span class="card-title-line"></span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>AX #</th><th>SAP #</th><th>Name</th><th>Branch</th><th>Box</th><th>Status</th><th>Date</th></tr></thead>
+        <tbody id="dash-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-scan">
+
+  <div class="import-zone" id="import-zone">
+    <div class="import-icon">📥</div>
+    <div class="import-title">Smart Import — Camera, PDF, Excel or Image</div>
+    <div class="import-sub">Upload a file or scan a document. The system will automatically read and fill in the matching fields — AX/SAP Number, Name, and Box are most important and will always be matched if found.</div>
+
+    <div class="cam-wrap" id="cam-wrap">
+      <video id="camera-video" autoplay playsinline muted></video>
+      <div class="cam-overlay">
+        <div class="cam-frame"></div>
+        <div class="cam-hint">Align document inside frame</div>
+      </div>
+      <canvas id="cam-canvas"></canvas>
+    </div>
+    <canvas id="pdf-canvas"></canvas>
+
+    <div class="proc-status" id="proc-status"></div>
+    <div class="proc-result" id="proc-result"></div>
+
+    <div class="import-btn-row">
+      <button class="btn btn-gold" id="btn-open-cam" onclick="openCamera()">📷 Open Camera</button>
+      <button class="btn btn-navy" id="btn-capture" onclick="captureFrame()" style="display:none">🔍 Scan Now</button>
+      <button class="btn btn-outline" id="btn-close-cam" onclick="closeCamera()" style="display:none">✖ Close Camera</button>
+      <button class="btn btn-outline" onclick="document.getElementById('file-input').click()">📂 Upload File (PDF / Excel / Image)</button>
+      <input type="file" id="file-input" class="hidden-input" accept=".pdf,.xlsx,.xls,.csv,.png,.jpg,.jpeg" onchange="handleFileUpload(event)" />
+    </div>
+
+    <div class="import-types">
+      <span class="import-type-chip">📄 PDF</span>
+      <span class="import-type-chip">📊 Excel / CSV</span>
+      <span class="import-type-chip">🖼️ Image (JPG/PNG)</span>
+      <span class="import-type-chip">📷 Live Camera</span>
+    </div>
+
+    <div style="margin-top:20px;padding-top:18px;border-top:1px solid var(--border)">
+      <div style="font-size:12px;color:var(--text3);margin-bottom:8px">— or type the file number / name manually —</div>
+      <div style="display:flex;gap:10px;max-width:460px;margin:0 auto">
+        <input class="form-input" id="manual-input" placeholder="Type File Number or Employee Name..." autocomplete="off" />
+        <button class="btn btn-navy" onclick="handleManual()">➕ Add</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="extract-preview" id="extract-preview">
+    <div class="extract-preview-title">✅ Information Detected From Your File</div>
+    <div id="extract-fields"></div>
+  </div>
+
+  <div class="form-card" id="form-card">
+    <div class="form-header">
+      <div class="form-header-title">📝 Complete Archive Record</div>
+      <span class="source-badge" id="scan-source-badge">MANUAL</span>
+    </div>
+
+    <div class="fileid-group">
+      <div class="fileid-group-title">🔑 File Numbers — At least one is required</div>
+      <div class="fileid-row">
+        <div class="form-group">
+          <label class="form-label">AX Number</label>
+          <input class="form-input ax-input" id="f-ax" placeholder="e.g. AX-2024-001" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">SAP Number</label>
+          <input class="form-input sap-input" id="f-sap" placeholder="e.g. SAP-12345" />
+        </div>
+      </div>
+      <div class="fileid-note">If both AX and SAP numbers are found, both will be saved automatically</div>
+    </div>
+
+    <div class="form-grid" style="margin-top:13px">
+      <div class="form-group form-full">
+        <label class="form-label">Employee Name <span class="req">*</span></label>
+        <input class="form-input" id="f-name" placeholder="Full Name" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Branch <span class="req">*</span></label>
+        <select class="form-select" id="f-branch">
+          <option value="">— Select Branch —</option>
+          <option>Riyadh</option><option>Jeddah</option><option>Makkah</option><option>Madinah</option>
+          <option>Dammam</option><option>Khobar</option><option>Jubail</option><option>Tabuk</option>
+          <option>Abha</option><option>Taif</option><option>Head Office</option>
+          <option value="__other__">Other (type below)</option>
+        </select>
+        <input class="form-input" id="f-branch-other" placeholder="Type branch name..." style="display:none;margin-top:6px" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Department</label>
+        <select class="form-select" id="f-dept">
+          <option value="">— Select Department —</option>
+          <option>HR</option><option>Finance</option><option>Operations</option><option>IT</option>
+          <option>Sales</option><option>Marketing</option><option>Procurement</option><option>Admin</option>
+          <option>Logistics</option><option>Legal</option>
+          <option value="__other__">Other (type below)</option>
+        </select>
+        <input class="form-input" id="f-dept-other" placeholder="Type department..." style="display:none;margin-top:6px" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Status</label>
+        <select class="form-select" id="f-status">
+          <option value="EOS">EOS (End of Service)</option>
+          <option value="Active">Active</option>
+          <option value="Pending">Pending</option>
+          <option value="Resigned">Resigned</option>
+          <option value="Terminated">Terminated</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Box Number <span class="req">*</span></label>
+        <input class="form-input" id="f-box" placeholder="BOX-001" list="box-datalist" />
+        <datalist id="box-datalist"></datalist>
+      </div>
+      <div class="form-group">
+        <label class="form-label">Storage Location</label>
+        <input class="form-input" id="f-location" placeholder="Room 3, Cabinet 2, Shelf A" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Date Archived</label>
+        <input class="form-input" type="date" id="f-date" />
+      </div>
+      <div class="form-group">
+        <label class="form-label">Archived By</label>
+        <input class="form-input" id="f-by" placeholder="Your name" />
+      </div>
+      <div class="form-group form-full">
+        <label class="form-label">Notes</label>
+        <textarea class="form-textarea" id="f-notes" placeholder="Additional information..."></textarea>
+      </div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="cancelForm()">✖ Cancel</button>
+      <button class="btn btn-green" onclick="saveRecord()">💾 Save to Archive</button>
+    </div>
+  </div>
+
+  <div class="card" id="bulk-preview-card" style="display:none">
+    <div class="card-title">📊 Multiple Records Detected — Review Before Import <span class="card-title-line"></span></div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>AX #</th><th>SAP #</th><th>Name</th><th>Branch</th><th>Dept</th><th>Status</th><th>Box</th><th>✓</th></tr></thead>
+        <tbody id="bulk-body"></tbody>
+      </table>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="cancelBulk()">✖ Cancel</button>
+      <button class="btn btn-green" onclick="confirmBulkImport()">💾 Import All Valid Rows</button>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-records">
+  <div class="toolbar">
+    <input class="search-box" id="rec-search" placeholder="🔍  Search by AX, SAP, Name, Branch, Box..." oninput="renderRecords()" />
+    <select class="filter-sel" id="f-status-filter" onchange="renderRecords()">
+      <option value="">All Status</option>
+      <option>EOS</option><option>Active</option><option>Pending</option><option>Resigned</option><option>Terminated</option>
+    </select>
+    <select class="filter-sel" id="f-branch-filter" onchange="renderRecords()"><option value="">All Branches</option></select>
+    <select class="filter-sel" id="f-box-filter" onchange="renderRecords()"><option value="">All Boxes</option></select>
+    <button class="btn btn-navy btn-sm" onclick="gotoPanel('scan')">➕ Add</button>
+  </div>
+  <div class="card">
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>AX Number</th><th>SAP Number</th><th>Name</th><th>Branch</th><th>Dept</th>
+          <th>Status</th><th>Box</th><th>Location</th><th>Date</th><th>Actions</th>
+        </tr></thead>
+        <tbody id="rec-body"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="panel" id="panel-boxes">
+  <div class="toolbar"><button class="btn btn-navy" onclick="openBoxModal()">➕ Add Box</button></div>
+  <div class="box-grid" id="box-grid"></div>
+</div>
+
+<div class="panel" id="panel-export">
+  <div class="card">
+    <div class="card-title">🖨️ Print &amp; Export <span class="card-title-line"></span></div>
+    <div class="export-grid">
+      <div class="export-card">
+        <div class="export-card-icon">🖨️</div>
+        <div class="export-card-title">Print Report</div>
+        <div class="export-card-sub">Official formatted report, ready to print or save as PDF</div>
+        <button class="btn btn-navy" onclick="exportPDF()">Print / Download PDF</button>
+      </div>
+      <div class="export-card">
+        <div class="export-card-icon">📊</div>
+        <div class="export-card-title">Excel / CSV Backup</div>
+        <div class="export-card-sub">Full data backup — opens directly in Excel</div>
+        <button class="btn btn-green" onclick="exportCSV()">Download CSV</button>
+      </div>
+    </div>
+  </div>
+  <div class="card">
+    <div class="card-title">🔄 Data Management <span class="card-title-line"></span></div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap">
+      <button class="btn btn-outline" onclick="backupJSON()">💾 Full Backup (JSON)</button>
+      <button class="btn btn-outline" onclick="document.getElementById('import-json').click()">📥 Restore Backup</button>
+      <input type="file" id="import-json" class="hidden-input" accept=".json" onchange="doImportJSON(event)" />
+      <button class="btn btn-red btn-sm" onclick="clearAll()">🗑️ Clear All Data</button>
+    </div>
+  </div>
+</div>
+
+</div>
+
+<div class="modal-overlay" id="edit-modal">
+  <div class="modal">
+    <div class="modal-title">✏️ Edit Record <span class="source-badge" id="edit-badge"></span></div>
+    <div class="fileid-group">
+      <div class="fileid-group-title">🔑 File Numbers</div>
+      <div class="fileid-row">
+        <div class="form-group"><label class="form-label">AX Number</label><input class="form-input ax-input" id="e-ax" /></div>
+        <div class="form-group"><label class="form-label">SAP Number</label><input class="form-input sap-input" id="e-sap" /></div>
+      </div>
+    </div>
+    <div class="form-grid" style="margin-top:13px">
+      <div class="form-group form-full"><label class="form-label">Employee Name <span class="req">*</span></label><input class="form-input" id="e-name" /></div>
+      <div class="form-group"><label class="form-label">Branch</label><input class="form-input" id="e-branch" /></div>
+      <div class="form-group"><label class="form-label">Department</label><input class="form-input" id="e-dept" /></div>
+      <div class="form-group"><label class="form-label">Status</label>
+        <select class="form-select" id="e-status"><option>EOS</option><option>Active</option><option>Pending</option><option>Resigned</option><option>Terminated</option></select>
+      </div>
+      <div class="form-group"><label class="form-label">Box Number</label><input class="form-input" id="e-box" /></div>
+      <div class="form-group"><label class="form-label">Storage Location</label><input class="form-input" id="e-location" /></div>
+      <div class="form-group"><label class="form-label">Date Archived</label><input class="form-input" type="date" id="e-date" /></div>
+      <div class="form-group"><label class="form-label">Archived By</label><input class="form-input" id="e-by" /></div>
+      <div class="form-group form-full"><label class="form-label">Notes</label><textarea class="form-textarea" id="e-notes"></textarea></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeEdit()">Cancel</button>
+      <button class="btn btn-navy" onclick="updateRecord()">💾 Update</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="box-modal">
+  <div class="modal" style="max-width:420px">
+    <div class="modal-title">📦 Add Archive Box</div>
+    <div class="form-group" style="margin-bottom:12px"><label class="form-label">Box Name / Number <span class="req">*</span></label><input class="form-input" id="b-name" placeholder="BOX-001" /></div>
+    <div class="form-group" style="margin-bottom:12px"><label class="form-label">Location <span class="req">*</span></label><input class="form-input" id="b-loc" placeholder="Room 3, Shelf A" /></div>
+    <div class="form-group" style="margin-bottom:12px"><label class="form-label">Description</label><input class="form-input" id="b-desc" placeholder="e.g. EOS files 2022-2023" /></div>
+    <div class="form-actions">
+      <button class="btn btn-outline" onclick="closeBoxModal()">Cancel</button>
+      <button class="btn btn-navy" onclick="saveBox()">Save Box</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-wrap" id="toast-wrap"></div>
+
+<script>
+let records = JSON.parse(localStorage.getItem('am_records')||'[]');
+let boxes   = JSON.parse(localStorage.getItem('am_boxes')||'[]');
+let editId  = null;
+let stream  = null;
+let busy    = false;
+let pendingBulkRows = [];
+
+function save(){
+  localStorage.setItem('am_records', JSON.stringify(records));
+  localStorage.setItem('am_boxes',   JSON.stringify(boxes));
+}
+
+function gotoPanel(name){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('panel-'+name).classList.add('active');
+  const map={dashboard:0,scan:1,records:2,boxes:3,export:4};
+  document.querySelectorAll('.nav-tab')[map[name]]?.classList.add('active');
+  if(name==='dashboard') renderDash();
+  if(name==='records')   renderRecords();
+  if(name==='boxes')     renderBoxes();
+  if(name==='scan')      { setToday(); refreshBoxDatalist(); }
+  if(name!=='scan')      closeCamera();
+}
+
+document.addEventListener('DOMContentLoaded',()=>{
+  document.getElementById('manual-input').addEventListener('keydown',e=>{ if(e.key==='Enter') handleManual(); });
+  document.getElementById('f-branch').addEventListener('change',function(){ document.getElementById('f-branch-other').style.display=this.value==='__other__'?'block':'none'; });
+  document.getElementById('f-dept').addEventListener('change',function(){ document.getElementById('f-dept-other').style.display=this.value==='__other__'?'block':'none'; });
+
+  const zone=document.getElementById('import-zone');
+  zone.addEventListener('dragover',e=>{ e.preventDefault(); zone.classList.add('dragover'); });
+  zone.addEventListener('dragleave',()=>zone.classList.remove('dragover'));
+  zone.addEventListener('drop',e=>{
+    e.preventDefault(); zone.classList.remove('dragover');
+    if(e.dataTransfer.files.length) processFile(e.dataTransfer.files[0]);
+  });
+
+  setToday();
+  renderDash();
+});
+
+function setToday(){
+  const el=document.getElementById('f-date');
+  if(el) el.value=new Date().toISOString().split('T')[0];
+}
+
+async function openCamera(){
+  const wrap=document.getElementById('cam-wrap');
+  const vid=document.getElementById('camera-video');
+  try{
+    stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment',width:{ideal:1280},height:{ideal:720}}});
+    vid.srcObject=stream;
+    wrap.classList.add('show');
+    document.getElementById('btn-open-cam').style.display='none';
+    document.getElementById('btn-capture').style.display='inline-flex';
+    document.getElementById('btn-close-cam').style.display='inline-flex';
+    setStatus('📷 Camera ready — align document, then tap Scan Now','');
+  }catch(e){ toast('Camera not available: '+e.message,true); }
+}
+function closeCamera(){
+  if(stream){ stream.getTracks().forEach(t=>t.stop()); stream=null; }
+  document.getElementById('cam-wrap').classList.remove('show');
+  document.getElementById('btn-open-cam').style.display='inline-flex';
+  document.getElementById('btn-capture').style.display='none';
+  document.getElementById('btn-close-cam').style.display='none';
+  setStatus('','');
+}
+async function captureFrame(){
+  if(busy) return;
+  const vid=document.getElementById('camera-video');
+  const canvas=document.getElementById('cam-canvas');
+  canvas.width=vid.videoWidth||640; canvas.height=vid.videoHeight||480;
+  canvas.getContext('2d').drawImage(vid,0,0);
+  const cw=Math.floor(canvas.width*.6), ch=Math.floor(canvas.height*.6);
+  const cx=Math.floor((canvas.width-cw)/2), cy=Math.floor((canvas.height-ch)/2);
+  const crop=document.createElement('canvas'); crop.width=cw; crop.height=ch;
+  crop.getContext('2d').drawImage(canvas,cx,cy,cw,ch,0,0,cw,ch);
+  await runOCR(crop,'CAMERA SCAN');
+}
+
+function handleFileUpload(e){
+  const file=e.target.files[0];
+  if(file) processFile(file);
+  e.target.value='';
+}
+function processFile(file){
+  const ext=file.name.split('.').pop().toLowerCase();
+  if(['png','jpg','jpeg'].includes(ext)) processImageFile(file);
+  else if(ext==='pdf') processPDFFile(file);
+  else if(['xlsx','xls','csv'].includes(ext)) processSpreadsheetFile(file);
+  else toast('Unsupported file type',true);
+}
+
+function processImageFile(file){
+  const reader=new FileReader();
+  reader.onload=async ev=>{
+    const img=new Image();
+    img.onload=async()=>{
+      const canvas=document.createElement('canvas');
+      canvas.width=img.width; canvas.height=img.height;
+      canvas.getContext('2d').drawImage(img,0,0);
+      await runOCR(canvas,'IMAGE UPLOAD');
+    };
+    img.src=ev.target.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+async function processPDFFile(file){
+  setStatus('📄 Reading PDF...','');
+  busy=true;
+  try{
+    pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+    const buf=await file.arrayBuffer();
+    const pdf=await pdfjsLib.getDocument({data:buf}).promise;
+    const page=await pdf.getPage(1);
+    const textContent=await page.getTextContent();
+    const text=textContent.items.map(i=>i.str).join(' ');
+
+    if(text.trim().length>15){
+      setStatus('','✅ Text extracted from PDF');
+      const fields=extractAllFields(text);
+      applyExtractedFields(fields,'PDF DOCUMENT');
+    } else {
+      setStatus('📄 No text layer found — running OCR on page image...','');
+      const viewport=page.getViewport({scale:2});
+      const canvas=document.getElementById('pdf-canvas');
+      canvas.width=viewport.width; canvas.height=viewport.height;
+      await page.render({canvasContext:canvas.getContext('2d'),viewport}).promise;
+      await runOCR(canvas,'PDF SCAN (OCR)');
+    }
+  }catch(e){
+    setStatus('❌ Could not read PDF: '+e.message,'');
+    toast('PDF reading failed',true);
+  }
+  busy=false;
+}
+
+function processSpreadsheetFile(file){
+  setStatus('📊 Reading spreadsheet...','');
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const wb=XLSX.read(ev.target.result,{type:'binary'});
+      const sheet=wb.Sheets[wb.SheetNames[0]];
+      const json=XLSX.utils.sheet_to_json(sheet,{defval:''});
+      if(!json.length){ toast('No data rows found in file',true); setStatus('',''); return; }
+
+      if(json.length===1){
+        const fields=mapSpreadsheetRow(json[0]);
+        applyExtractedFields(fields,'EXCEL / CSV');
+      } else {
+        pendingBulkRows = json.map(row=>mapSpreadsheetRow(row));
+        showBulkPreview();
+      }
+      setStatus('','✅ '+json.length+' row(s) read from file');
+    }catch(e){
+      setStatus('❌ Could not read file: '+e.message,'');
+      toast('Spreadsheet reading failed',true);
+    }
+  };
+  reader.readAsBinaryString(file);
+}
+
+function mapSpreadsheetRow(row){
+  const keys=Object.keys(row);
+  const find=patterns=>{
+    for(const k of keys){
+      const kl=k.toLowerCase().replace(/[^a-z0-9]/g,'');
+      for(const p of patterns){
+        if(kl.includes(p)) return String(row[k]).trim();
+      }
+    }
+    return '';
+  };
+  return {
+    ax:     find(['axnumber','axno','ax']),
+    sap:    find(['sapnumber','sapno','sap']),
+    name:   find(['employeename','name','fullname']),
+    branch: find(['branch','location','city']),
+    dept:   find(['department','dept','division']),
+    status: find(['status']),
+    box:    find(['box','boxnumber','boxno']),
+    location: find(['storagelocation','storage','shelflocation','room']),
+    notes:  find(['notes','remarks','comment'])
+  };
+}
+
+async function runOCR(canvasEl, source){
+  busy=true;
+  setStatus('🔍 Scanning text... please wait','');
+  try{
+    const result=await Tesseract.recognize(canvasEl,'eng',{
+      logger:m=>{ if(m.status==='recognizing text') setStatus('🔍 Scanning... '+Math.round(m.progress*100)+'%',''); }
+    });
+    const text=result.data.text;
+    const fields=extractAllFields(text);
+    if(fields.ax||fields.sap||fields.name){
+      setStatus('','✅ Information detected');
+      applyExtractedFields(fields,source);
+    } else {
+      setStatus('⚠️ Could not detect clear fields — please fill manually','');
+      toast('No clear data detected. You can still type manually.',true);
+      openManualFormBlank(source);
+    }
+  }catch(e){
+    setStatus('❌ OCR error: '+e.message,'');
+  }
+  busy=false;
+  closeCamera();
+}
+
+function extractAllFields(text){
+  const out={ax:'',sap:'',name:'',branch:'',dept:'',status:'',box:'',location:'',notes:''};
+  const clean = text.replace(/\r/g,'');
+
+  let m = clean.match(/AX[\s\-:#]*([A-Z0-9\-\/]{3,20})/i);
+  if(m) out.ax = ('AX-'+m[1]).toUpperCase().replace(/^AX-AX-?/,'AX-');
+
+  m = clean.match(/SAP[\s\-:#]*([A-Z0-9\-\/]{3,20})/i);
+  if(m) out.sap = ('SAP-'+m[1]).toUpperCase().replace(/^SAP-SAP-?/,'SAP-');
+
+  m = clean.match(/(?:Employee\s*Name|Name)\s*[:\-]\s*([A-Za-z\s\.]{3,50})/i);
+  if(m) out.name = m[1].trim().replace(/\s{2,}/g,' ');
+
+  const branchList=['Riyadh','Jeddah','Makkah','Madinah','Dammam','Khobar','Jubail','Tabuk','Abha','Taif','Head Office'];
+  for(const b of branchList){
+    if(new RegExp(b,'i').test(clean)){ out.branch=b; break; }
+  }
+  if(!out.branch){
+    m = clean.match(/Branch\s*[:\-]\s*([A-Za-z\s]{2,30})/i);
+    if(m) out.branch = m[1].trim();
+  }
+
+  const deptList=['HR','Finance','Operations','IT','Sales','Marketing','Procurement','Admin','Logistics','Legal'];
+  for(const d of deptList){
+    if(new RegExp('\\b'+d+'\\b','i').test(clean)){ out.dept=d; break; }
+  }
+  if(!out.dept){
+    m = clean.match(/Department\s*[:\-]\s*([A-Za-z\s]{2,30})/i);
+    if(m) out.dept = m[1].trim();
+  }
+
+  const statusList=['EOS','Active','Pending','Resigned','Terminated'];
+  for(const s of statusList){
+    if(new RegExp('\\b'+s+'\\b','i').test(clean)){ out.status=s; break; }
+  }
+
+  m = clean.match(/Box\s*(?:No\.?|Number)?\s*[:\-]?\s*([A-Z0-9\-]{2,20})/i);
+  if(m) out.box = m[1].toUpperCase();
+
+  m = clean.match(/Location\s*[:\-]\s*([A-Za-z0-9,\s]{3,60})/i);
+  if(m) out.location = m[1].trim();
+
+  if(!out.ax && !out.sap){
+    m = clean.match(/\b\d{4,10}\b/);
+    if(m) out.ax = m[0];
+  }
+  if(!out.name){
+    const lines = clean.split('\n').map(l=>l.trim()).filter(Boolean);
+    for(const l of lines){
+      if(/^[A-Z][a-zA-Z\s]{4,40}$/.test(l) && !/AX|SAP|BOX|BRANCH|DEPT/i.test(l)){
+        out.name = l; break;
+      }
+    }
+  }
+  return out;
+}
+
+function applyExtractedFields(fields, source){
+  closeCamera();
+  document.getElementById('f-ax').value = fields.ax || '';
+  document.getElementById('f-sap').value = fields.sap || '';
+  document.getElementById('f-name').value = fields.name || '';
+  document.getElementById('f-location').value = fields.location || '';
+  document.getElementById('f-notes').value = fields.notes || '';
+
+  const branchSel = document.getElementById('f-branch');
+  const branchOther = document.getElementById('f-branch-other');
+  const branchMatch = [...branchSel.options].find(o=>o.value.toLowerCase()===((fields.branch||'').toLowerCase()));
+  if(fields.branch && branchMatch){ branchSel.value = branchMatch.value; branchOther.style.display='none'; }
+  else if(fields.branch){ branchSel.value='__other__'; branchOther.style.display='block'; branchOther.value=fields.branch; }
+  else { branchSel.value=''; branchOther.style.display='none'; branchOther.value=''; }
+
+  const deptSel = document.getElementById('f-dept');
+  const deptOther = document.getElementById('f-dept-other');
+  const deptMatch = [...deptSel.options].find(o=>o.value.toLowerCase()===((fields.dept||'').toLowerCase()));
+  if(fields.dept && deptMatch){ deptSel.value = deptMatch.value; deptOther.style.display='none'; }
+  else if(fields.dept){ deptSel.value='__other__'; deptOther.style.display='block'; deptOther.value=fields.dept; }
+  else { deptSel.value=''; deptOther.style.display='none'; deptOther.value=''; }
+
+  if(fields.status) document.getElementById('f-status').value = fields.status;
+  if(fields.box) document.getElementById('f-box').value = fields.box;
+
+  showExtractPreview(fields, source);
+
+  document.getElementById('scan-source-badge').textContent = source;
+  document.getElementById('form-card').classList.add('show');
+  document.getElementById('bulk-preview-card').style.display='none';
+  toast('✅ '+source+' — review and complete the remaining fields');
+  setTimeout(()=>{
+    const target = fields.name ? (fields.branch?'f-box':'f-branch') : 'f-name';
+    document.getElementById(target)?.focus();
+  },200);
+}
+
+function showExtractPreview(fields, source){
+  const wrap=document.getElementById('extract-preview');
+  const inner=document.getElementById('extract-fields');
+  const labels={ax:'AX Number',sap:'SAP Number',name:'Name',branch:'Branch',dept:'Department',status:'Status',box:'Box',location:'Location'};
+  let html='';
+  for(const k in labels){
+    if(fields[k]){
+      html+=`<span class="extract-field"><b>${labels[k]}:</b> ${fields[k]}</span>`;
+    }
+  }
+  const notFound = Object.keys(labels).filter(k=>!fields[k]);
+  if(notFound.length){
+    html+=`<span class="extract-field ignored">Not found (ignored): ${notFound.map(k=>labels[k]).join(', ')}</span>`;
+  }
+  inner.innerHTML = html || '<span style="color:var(--text2)">No structured fields detected — please fill manually below.</span>';
+  wrap.classList.add('show');
+}
+
+function openManualFormBlank(source){
+  document.getElementById('scan-source-badge').textContent = source||'MANUAL';
+  document.getElementById('form-card').classList.add('show');
+  document.getElementById('extract-preview').classList.remove('show');
+}
+
+function showBulkPreview(){
+  document.getElementById('form-card').classList.remove('show');
+  document.getElementById('extract-preview').classList.remove('show');
+  const card=document.getElementById('bulk-preview-card');
+  const body=document.getElementById('bulk-body');
+  body.innerHTML = pendingBulkRows.map((r,i)=>{
+    const valid = (r.ax||r.sap) && r.name && r.box;
+    return `<tr style="opacity:${valid?1:0.45}">
+      <td>${r.ax||'—'}</td><td>${r.sap||'—'}</td><td><strong>${r.name||'(missing)'}</strong></td>
+      <td>${r.branch||'—'}</td><td>${r.dept||'—'}</td><td>${r.status||'—'}</td><td>${r.box||'(missing)'}</td>
+      <td>${valid?'✅':'⚠️'}</td>
+    </tr>`;
+  }).join('');
+  card.style.display='block';
+  toast(`📊 ${pendingBulkRows.length} rows loaded — review then import`);
+}
+function cancelBulk(){
+  pendingBulkRows=[];
+  document.getElementById('bulk-preview-card').style.display='none';
+}
+function confirmBulkImport(){
+  let added=0, skipped=0;
+  pendingBulkRows.forEach(r=>{
+    if((r.ax||r.sap) && r.name && r.box){
+      if(!boxes.find(b=>b.name===r.box)) boxes.push({id:Date.now()+Math.random()+'b',name:r.box,location:r.location||'',desc:''});
+      records.unshift({
+        id:Date.now().toString()+Math.random().toString(36).slice(2,7),
+        ax:(r.ax||'').toUpperCase(), sap:(r.sap||'').toUpperCase(), name:r.name,
+        branch:r.branch||'', dept:r.dept||'', status:r.status||'EOS', box:r.box,
+        location:r.location||'', date:new Date().toISOString().split('T')[0],
+        by:'', notes:r.notes||'', addedAt:new Date().toISOString()
+      });
+      added++;
+    } else skipped++;
+  });
+  save();
+  cancelBulk();
+  renderDash();
+  toast(`✅ Imported ${added} record(s)${skipped?`, skipped ${skipped} (missing required fields)`:''}`);
+}
+
+function handleManual(){
+  const val=document.getElementById('manual-input').value.trim();
+  if(!val){ toast('Please enter a file number or name',true); return; }
+  const isAX=/AX/i.test(val), isSAP=/SAP/i.test(val);
+  const isNum=/^\d+$/.test(val.replace(/\D/g,'')) && val.length>3;
+  const fields={ax:'',sap:'',name:'',branch:'',dept:'',status:'',box:'',location:'',notes:''};
+  if(isAX || (isNum && !isSAP)) fields.ax=val.toUpperCase();
+  else if(isSAP) fields.sap=val.toUpperCase();
+  else fields.name=val;
+  applyExtractedFields(fields,'MANUAL ENTRY');
+  document.getElementById('manual-input').value='';
+}
+
+function saveRecord(){
+  const ax=document.getElementById('f-ax').value.trim().toUpperCase();
+  const sap=document.getElementById('f-sap').value.trim().toUpperCase();
+  const name=document.getElementById('f-name').value.trim();
+  let branch=document.getElementById('f-branch').value;
+  if(branch==='__other__') branch=document.getElementById('f-branch-other').value.trim();
+  let dept=document.getElementById('f-dept').value;
+  if(dept==='__other__') dept=document.getElementById('f-dept-other').value.trim();
+  const box=document.getElementById('f-box').value.trim();
+
+  if(!ax && !sap){ toast('Enter at least AX Number or SAP Number!',true); return; }
+  if(!name){ toast('Employee name is required!',true); return; }
+  if(!box){ toast('Box number is required!',true); return; }
+
+  if(!boxes.find(b=>b.name===box)){
+    boxes.push({id:Date.now()+'b',name:box,location:document.getElementById('f-location').value.trim(),desc:''});
+  }
+
+  records.unshift({
+    id:Date.now().toString(), ax, sap, name, branch, dept,
+    status:document.getElementById('f-status').value,
+    box, location:document.getElementById('f-location').value.trim(),
+    date:document.getElementById('f-date').value,
+    by:document.getElementById('f-by').value.trim(),
+    notes:document.getElementById('f-notes').value.trim(),
+    addedAt:new Date().toISOString()
+  });
+  save();
+  cancelForm();
+  renderDash();
+  toast('✅ File archived successfully!');
+}
+function cancelForm(){
+  document.getElementById('form-card').classList.remove('show');
+  document.getElementById('extract-preview').classList.remove('show');
+  ['f-ax','f-sap','f-name','f-box','f-location','f-by','f-notes'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('f-branch').value=''; document.getElementById('f-branch-other').style.display='none';
+  document.getElementById('f-dept').value=''; document.getElementById('f-dept-other').style.display='none';
+  document.getElementById('f-status').value='EOS';
+  setToday();
+}
+
+function setStatus(msg,result){
+  document.getElementById('proc-status').textContent=msg;
+  document.getElementById('proc-result').textContent=result;
+}
+
+function renderDash(){
+  document.getElementById('s-total').textContent  = records.length;
+  document.getElementById('s-boxes').textContent  = boxes.length;
+  document.getElementById('s-eos').textContent    = records.filter(r=>r.status==='EOS').length;
+  document.getElementById('s-active').textContent = records.filter(r=>r.status==='Active').length;
+  document.getElementById('s-branch').textContent = new Set(records.map(r=>r.branch).filter(Boolean)).size;
+
+  const tbody=document.getElementById('dash-body');
+  const recent=records.slice(0,10);
+  if(!recent.length){ tbody.innerHTML='<tr><td colspan="7"><div class="empty"><div class="empty-icon">📭</div><div class="empty-text">No records yet</div></div></td></tr>'; return; }
+  tbody.innerHTML=recent.map(r=>`<tr>
+    <td>${r.ax?`<span class="fid">${r.ax}</span>`:'—'}</td>
+    <td>${r.sap?`<span class="fid sap">${r.sap}</span>`:'—'}</td>
+    <td><strong>${r.name}</strong></td><td>${r.branch||'—'}</td><td>📦 ${r.box}</td>
+    <td><span class="tag tag-${(r.status||'').toLowerCase()}">${r.status}</span></td>
+    <td style="font-size:11px">${fmtDate(r.date)}</td>
+  </tr>`).join('');
+}
+
+function renderRecords(){
+  const q=(document.getElementById('rec-search').value||'').toLowerCase();
+  const st=document.getElementById('f-status-filter').value;
+  const br=document.getElementById('f-branch-filter').value;
+  const bx=document.getElementById('f-box-filter').value;
+
+  const allBranches=[...new Set(records.map(r=>r.branch).filter(Boolean))].sort();
+  document.getElementById('f-branch-filter').innerHTML='<option value="">All Branches</option>'+allBranches.map(b=>`<option ${b===br?'selected':''}>${b}</option>`).join('');
+  const allBoxes=[...new Set(records.map(r=>r.box).filter(Boolean))].sort();
+  document.getElementById('f-box-filter').innerHTML='<option value="">All Boxes</option>'+allBoxes.map(b=>`<option ${b===bx?'selected':''}>${b}</option>`).join('');
+
+  const filtered=records.filter(r=>{
+    const mq=!q||[r.ax,r.sap,r.name,r.branch,r.dept,r.box,r.location].some(v=>v&&v.toLowerCase().includes(q));
+    return mq && (!st||r.status===st) && (!br||r.branch===br) && (!bx||r.box===bx);
+  });
+  const tbody=document.getElementById('rec-body');
+  if(!filtered.length){ tbody.innerHTML='<tr><td colspan="10"><div class="empty"><div class="empty-icon">🔍</div><div class="empty-text">No records found</div></div></td></tr>'; return; }
+  tbody.innerHTML=filtered.map(r=>`<tr>
+    <td>${r.ax?`<span class="fid">${r.ax}</span>`:'—'}</td>
+    <td>${r.sap?`<span class="fid sap">${r.sap}</span>`:'—'}</td>
+    <td><strong>${r.name}</strong></td><td>${r.branch||'—'}</td>
+    <td style="font-size:11px;color:var(--text2)">${r.dept||'—'}</td>
+    <td><span class="tag tag-${(r.status||'').toLowerCase()}">${r.status}</span></td>
+    <td>📦 ${r.box}</td><td style="font-size:11px;color:var(--text2)">${r.location||'—'}</td>
+    <td style="font-size:11px">${fmtDate(r.date)}</td>
+    <td><div class="row-actions">
+      <button class="btn btn-outline btn-sm" onclick='openEdit("${r.id}")'>✏️</button>
+      <button class="btn btn-red btn-sm" onclick='delRec("${r.id}")'>🗑️</button>
+    </div></td>
+  </tr>`).join('');
+}
+function delRec(id){
+  if(!confirm('Delete this record permanently?')) return;
+  records=records.filter(r=>r.id!==id);
+  save(); renderRecords(); renderDash(); toast('Record deleted.');
+}
+
+function openEdit(id){
+  const r=records.find(x=>x.id===id); if(!r) return;
+  editId=id;
+  document.getElementById('edit-badge').textContent=r.ax||r.sap||'EDIT';
+  document.getElementById('e-ax').value=r.ax||''; document.getElementById('e-sap').value=r.sap||'';
+  document.getElementById('e-name').value=r.name||''; document.getElementById('e-branch').value=r.branch||'';
+  document.getElementById('e-dept').value=r.dept||''; document.getElementById('e-status').value=r.status||'EOS';
+  document.getElementById('e-box').value=r.box||''; document.getElementById('e-location').value=r.location||'';
+  document.getElementById('e-date').value=r.date||''; document.getElementById('e-by').value=r.by||'';
+  document.getElementById('e-notes').value=r.notes||'';
+  document.getElementById('edit-modal').classList.add('open');
+}
+function closeEdit(){ document.getElementById('edit-modal').classList.remove('open'); editId=null; }
+function updateRecord(){
+  const r=records.find(x=>x.id===editId); if(!r) return;
+  const ax=document.getElementById('e-ax').value.trim().toUpperCase();
+  const sap=document.getElementById('e-sap').value.trim().toUpperCase();
+  const name=document.getElementById('e-name').value.trim();
+  if(!ax&&!sap){ toast('Need AX or SAP number!',true); return; }
+  if(!name){ toast('Name required!',true); return; }
+  r.ax=ax; r.sap=sap; r.name=name;
+  r.branch=document.getElementById('e-branch').value.trim();
+  r.dept=document.getElementById('e-dept').value.trim();
+  r.status=document.getElementById('e-status').value;
+  r.box=document.getElementById('e-box').value.trim();
+  r.location=document.getElementById('e-location').value.trim();
+  r.date=document.getElementById('e-date').value;
+  r.by=document.getElementById('e-by').value.trim();
+  r.notes=document.getElementById('e-notes').value.trim();
+  save(); closeEdit(); renderRecords(); renderDash();
+  toast('✅ Record updated!');
+}
+
+function renderBoxes(){
+  const grid=document.getElementById('box-grid');
+  if(!boxes.length){ grid.innerHTML='<div class="empty" style="grid-column:1/-1"><div class="empty-icon">📦</div><div class="empty-text">No boxes yet</div></div>'; return; }
+  grid.innerHTML=boxes.map(b=>{
+    const cnt=records.filter(r=>r.box===b.name).length;
+    return `<div class="box-card">
+      <div class="box-icon">📦</div><div class="box-name">${b.name}</div>
+      <div class="box-loc">📍 ${b.location||'No location'}</div>
+      ${b.desc?`<div class="box-loc">📝 ${b.desc}</div>`:''}
+      <span class="box-count">${cnt} file${cnt!==1?'s':''}</span>
+      <div style="margin-top:9px"><button class="btn btn-red btn-sm" onclick='delBox("${b.id}")'>🗑️ Remove</button></div>
+    </div>`;
+  }).join('');
+}
+function openBoxModal(){ document.getElementById('box-modal').classList.add('open'); }
+function closeBoxModal(){ document.getElementById('box-modal').classList.remove('open'); ['b-name','b-loc','b-desc'].forEach(id=>document.getElementById(id).value=''); }
+function saveBox(){
+  const name=document.getElementById('b-name').value.trim();
+  const loc=document.getElementById('b-loc').value.trim();
+  if(!name){ toast('Box name required!',true); return; }
+  if(boxes.find(b=>b.name===name)){ toast('Box already exists!',true); return; }
+  boxes.push({id:Date.now().toString(),name,location:loc,desc:document.getElementById('b-desc').value.trim()});
+  save(); closeBoxModal(); renderBoxes(); toast('✅ Box added!');
+}
+function delBox(id){
+  const b=boxes.find(x=>x.id===id); if(!b) return;
+  if(!confirm(`Delete box "${b.name}"?`)) return;
+  boxes=boxes.filter(x=>x.id!==id); save(); renderBoxes(); toast('Box deleted.');
+}
+function refreshBoxDatalist(){
+  const dl=document.getElementById('box-datalist');
+  if(dl) dl.innerHTML=boxes.map(b=>`<option value="${b.name}">`).join('');
+}
+
+function exportCSV(){
+  const h=['AX Number','SAP Number','Employee Name','Branch','Department','Status','Box','Location','Date Archived','Archived By','Notes'];
+  const rows=records.map(r=>[r.ax,r.sap,r.name,r.branch,r.dept,r.status,r.box,r.location,r.date,r.by,r.notes].map(v=>`"${(v||'').replace(/"/g,'""')}"`));
+  const csv=[h,...rows].map(r=>r.join(',')).join('\n');
+  dlFile('archive-records.csv',csv,'text/csv');
+  toast('✅ CSV exported!');
+}
+
+function exportPDF(){
+  const now=new Date();
+  const dateStr=now.toLocaleDateString('en-GB',{day:'2-digit',month:'long',year:'numeric'});
+  const timeStr=now.toLocaleTimeString('en-GB',{hour:'2-digit',minute:'2-digit'});
+  const reportId='RPT-'+now.getFullYear()+String(now.getMonth()+1).padStart(2,'0')+String(now.getDate()).padStart(2,'0')+'-'+String(now.getHours()).padStart(2,'0')+String(now.getMinutes()).padStart(2,'0');
+
+  const totalFiles=records.length;
+  const eosCount=records.filter(r=>r.status==='EOS').length;
+  const activeCount=records.filter(r=>r.status==='Active').length;
+  const totalBoxes=boxes.length;
+  const branches=[...new Set(records.map(r=>r.branch).filter(Boolean))];
+
+  const statusColor=s=>({EOS:'#dc2626',Active:'#16a34a',Pending:'#b45309',Resigned:'#6b7280',Terminated:'#b91c1c'}[s]||'#374151');
+  const statusBg=s=>({EOS:'#fee2e2',Active:'#dcfce7',Pending:'#fef9c3',Resigned:'#f3f4f6',Terminated:'#fecaca'}[s]||'#f3f4f6');
+
+  const tableRows=records.map((r,i)=>`<tr style="background:${i%2===0?'#ffffff':'#f8faff'}">
+    <td style="text-align:center;color:#6b7280;font-size:9px">${i+1}</td>
+    <td><span style="background:#eff6ff;color:#1d4ed8;padding:2px 7px;border-radius:4px;font-weight:700;font-size:9px;font-family:monospace">${r.ax||'—'}</span></td>
+    <td><span style="background:#f5f3ff;color:#6d28d9;padding:2px 7px;border-radius:4px;font-weight:700;font-size:9px;font-family:monospace">${r.sap||'—'}</span></td>
+    <td style="font-weight:600;color:#111827">${r.name}</td>
+    <td style="color:#374151">${r.branch||'—'}</td><td style="color:#374151">${r.dept||'—'}</td>
+    <td><span style="background:${statusBg(r.status)};color:${statusColor(r.status)};padding:2px 8px;border-radius:10px;font-weight:700;font-size:9px">${r.status}</span></td>
+    <td style="font-weight:600;color:#1d4ed8">📦 ${r.box}</td>
+    <td style="color:#374151;font-size:9px">${r.location||'—'}</td>
+    <td style="color:#374151">${fmtDate(r.date)}</td>
+    <td style="color:#6b7280;font-size:9px">${r.by||'—'}</td>
+  </tr>`).join('');
+
+  const branchSummaryRows=branches.map(b=>{
+    const cnt=records.filter(r=>r.branch===b).length;
+    const eos=records.filter(r=>r.branch===b&&r.status==='EOS').length;
+    return `<tr><td style="padding:5px 10px;font-weight:600">${b}</td><td style="padding:5px 10px;text-align:center">${cnt}</td><td style="padding:5px 10px;text-align:center;color:#dc2626;font-weight:600">${eos}</td><td style="padding:5px 10px;text-align:center;color:#16a34a">${cnt-eos}</td></tr>`;
+  }).join('');
+
+  const html=`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Employee Archive Report — ${dateStr}</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',Arial,sans-serif;color:#111827;background:#fff;font-size:10px}
+.page{max-width:1050px;margin:0 auto;padding:32px 36px}
+.header{background:linear-gradient(135deg,#0f172a 0%,#1e3a5f 60%,#1e40af 100%);color:#fff;border-radius:12px;padding:28px 32px;margin-bottom:24px;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;top:-40px;right:-40px;width:200px;height:200px;background:rgba(255,255,255,.05);border-radius:50%}
+.header-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:20px}
+.org-name{font-size:11px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-bottom:4px}
+.report-title{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.1}
+.report-sub{font-size:11px;color:rgba(255,255,255,.65);margin-top:5px}
+.report-id-box{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:8px;padding:10px 14px;text-align:right}
+.report-id-lbl{font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.1em;margin-bottom:3px}
+.report-id-val{font-size:12px;font-weight:700;font-family:monospace;color:#93c5fd}
+.header-meta{display:flex;gap:24px;padding-top:16px;border-top:1px solid rgba(255,255,255,.15)}
+.meta-item{display:flex;flex-direction:column;gap:2px}
+.meta-lbl{font-size:9px;color:rgba(255,255,255,.5);text-transform:uppercase;letter-spacing:.08em}
+.meta-val{font-size:11px;font-weight:600;color:#e0f2fe}
+.prepared-banner{background:#f0f9ff;border:1px solid #bae6fd;border-left:4px solid #0284c7;border-radius:8px;padding:12px 16px;margin-bottom:20px;display:flex;justify-content:space-between;align-items:center}
+.pb-left{display:flex;align-items:center;gap:12px}
+.pb-avatar{width:36px;height:36px;background:linear-gradient(135deg,#1d4ed8,#7c3aed);border-radius:50%;display:flex;align-items:center;justify-content:center;color:#fff;font-weight:800;font-size:14px}
+.pb-name{font-size:13px;font-weight:700;color:#0c4a6e}
+.stats-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.stat-box{border-radius:10px;padding:14px 16px}
+.stat-box-blue{background:linear-gradient(135deg,#eff6ff,#dbeafe);border:1px solid #bfdbfe}
+.stat-box-red{background:linear-gradient(135deg,#fff1f2,#ffe4e6);border:1px solid #fecdd3}
+.stat-box-green{background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:1px solid #bbf7d0}
+.stat-box-purple{background:linear-gradient(135deg,#faf5ff,#f3e8ff);border:1px solid #e9d5ff}
+.stat-num{font-size:28px;font-weight:800;line-height:1}
+.stat-num-blue{color:#1d4ed8}.stat-num-red{color:#dc2626}.stat-num-green{color:#16a34a}.stat-num-purple{color:#7c3aed}
+.stat-lbl{font-size:9px;font-weight:600;text-transform:uppercase;letter-spacing:.08em;margin-top:4px}
+.stat-lbl-blue{color:#3b82f6}.stat-lbl-red{color:#ef4444}.stat-lbl-green{color:#22c55e}.stat-lbl-purple{color:#a855f7}
+.section-title{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:#374151;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+.section-title::after{content:'';flex:1;height:1px;background:#e5e7eb}
+.branch-table{width:100%;border-collapse:collapse;margin-bottom:22px;font-size:10px}
+.branch-table thead th{background:#f1f5f9;color:#475569;padding:7px 10px;text-align:left;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;border-bottom:2px solid #e2e8f0}
+.branch-table tbody td{padding:6px 10px;border-bottom:1px solid #f1f5f9}
+.main-table{width:100%;border-collapse:collapse;font-size:9.5px}
+.main-table thead tr{background:linear-gradient(135deg,#1e3a5f,#1d4ed8)}
+.main-table thead th{padding:9px 8px;text-align:left;color:#fff;font-size:8.5px;font-weight:700;text-transform:uppercase;letter-spacing:.07em}
+.main-table tbody td{padding:7px 8px;border-bottom:1px solid #f0f0f0;vertical-align:middle}
+.footer{margin-top:28px;padding-top:16px;border-top:2px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center}
+.footer-left{font-size:9px;color:#9ca3af}
+.footer-sig{text-align:right}
+.sig-line{width:160px;border-bottom:1px solid #374151;margin-bottom:4px;margin-left:auto}
+.sig-name{font-size:10px;font-weight:700;color:#1f2937}
+.confidential{display:inline-block;background:#fef2f2;border:1px solid #fecaca;color:#dc2626;font-size:8px;font-weight:700;padding:2px 8px;border-radius:4px;letter-spacing:.08em;text-transform:uppercase;margin-top:6px}
+@media print{ body{-webkit-print-color-adjust:exact;print-color-adjust:exact} .page{padding:20px 24px} }
+</style></head><body>
+<div class="page">
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="org-name">Human Resources — Archive Management Division</div>
+        <div class="report-title">Employee File Archive Report</div>
+        <div class="report-sub">Official Record — Confidential Document</div>
+      </div>
+      <div class="report-id-box">
+        <div class="report-id-lbl">Report ID</div>
+        <div class="report-id-val">${reportId}</div>
+      </div>
+    </div>
+    <div class="header-meta">
+      <div class="meta-item"><div class="meta-lbl">Generated On</div><div class="meta-val">${dateStr}</div></div>
+      <div class="meta-item"><div class="meta-lbl">Time</div><div class="meta-val">${timeStr}</div></div>
+      <div class="meta-item"><div class="meta-lbl">Total Records</div><div class="meta-val">${totalFiles} Files</div></div>
+      <div class="meta-item"><div class="meta-lbl">Archive Boxes</div><div class="meta-val">${totalBoxes} Boxes</div></div>
+      <div class="meta-item"><div class="meta-lbl">Branches Covered</div><div class="meta-val">${branches.length} Branches</div></div>
+    </div>
+  </div>
+  <div class="prepared-banner">
+    <div class="pb-left"><div class="pb-avatar">M</div><div><div class="pb-name">Prepared by: Mohammad Ariful Islam</div></div></div>
+    <div style="font-size:10px;color:#0369a1">${dateStr}</div>
+  </div>
+  <div class="stats-grid">
+    <div class="stat-box stat-box-blue"><div class="stat-num stat-num-blue">${totalFiles}</div><div class="stat-lbl stat-lbl-blue">Total Files Archived</div></div>
+    <div class="stat-box stat-box-red"><div class="stat-num stat-num-red">${eosCount}</div><div class="stat-lbl stat-lbl-red">EOS Files</div></div>
+    <div class="stat-box stat-box-green"><div class="stat-num stat-num-green">${activeCount}</div><div class="stat-lbl stat-lbl-green">Active Files</div></div>
+    <div class="stat-box stat-box-purple"><div class="stat-num stat-num-purple">${totalBoxes}</div><div class="stat-lbl stat-lbl-purple">Archive Boxes</div></div>
+  </div>
+  ${branches.length>0?`<div class="section-title">Branch Summary</div>
+  <table class="branch-table"><thead><tr><th>Branch</th><th>Total Files</th><th>EOS</th><th>Others</th></tr></thead><tbody>${branchSummaryRows}</tbody></table>`:''}
+  <div class="section-title">Complete Archive Records</div>
+  <table class="main-table"><thead><tr>
+    <th>#</th><th>AX Number</th><th>SAP Number</th><th>Employee Name</th><th>Branch</th><th>Department</th><th>Status</th><th>Box</th><th>Location</th><th>Date Archived</th><th>Archived By</th>
+  </tr></thead><tbody>${tableRows}</tbody></table>
+  <div class="footer">
+    <div class="footer-left">
+      <div>Employee File Archive Management System — Official Report</div>
+      <div style="margin-top:3px">Report ID: <strong>${reportId}</strong> &nbsp;|&nbsp; Generated: ${dateStr} at ${timeStr}</div>
+      <div class="confidential" style="margin-top:6px">🔒 Confidential — For Internal Use Only</div>
+    </div>
+    <div class="footer-sig">
+      <div class="sig-line"></div>
+      <div class="sig-name">Mohammad Ariful Islam</div>
+    </div>
+  </div>
+</div>
+</body></html>`;
+
+  const w=window.open('','_blank');
+  w.document.write(html); w.document.close(); w.focus();
+  setTimeout(()=>w.print(),800);
+  toast('✅ Professional report ready to print!');
+}
+
+function backupJSON(){
+  const data={records,boxes,exportedAt:new Date().toISOString()};
+  dlFile('archive-backup.json',JSON.stringify(data,null,2),'application/json');
+  toast('✅ Backup downloaded!');
+}
+function doImportJSON(e){
+  const file=e.target.files[0]; if(!file) return;
+  const reader=new FileReader();
+  reader.onload=ev=>{
+    try{
+      const data=JSON.parse(ev.target.result);
+      if(!confirm(`Merge ${data.records?.length||0} records + ${data.boxes?.length||0} boxes?`)) return;
+      const rIds=new Set(records.map(r=>r.id)); const bIds=new Set(boxes.map(b=>b.id));
+      (data.records||[]).forEach(r=>{ if(!rIds.has(r.id)) records.push(r); });
+      (data.boxes||[]).forEach(b=>{ if(!bIds.has(b.id)) boxes.push(b); });
+      save(); renderDash(); toast('✅ Data imported!');
+    }catch{ toast('Invalid backup file!',true); }
+  };
+  reader.readAsText(file); e.target.value='';
+}
+function clearAll(){
+  if(!confirm('⚠️ Delete ALL records and boxes permanently?')) return;
+  if(!confirm('This cannot be undone. Really continue?')) return;
+  records=[]; boxes=[]; save();
+  renderDash(); renderRecords(); renderBoxes();
+  toast('All data cleared.');
+}
+
+function fmtDate(d){ if(!d) return '—'; const p=d.split('-'); return p.length===3?`${p[2]}/${p[1]}/${p[0]}`:d; }
+function dlFile(name,content,type){ const a=document.createElement('a'); a.href=URL.createObjectURL(new Blob([content],{type})); a.download=name; a.click(); }
+function toast(msg,err=false){
+  const wrap=document.getElementById('toast-wrap');
+  const t=document.createElement('div'); t.className='toast'+(err?' err':''); t.textContent=msg;
+  wrap.appendChild(t); setTimeout(()=>t.remove(),3800);
+}
+</script>
+</body>
+</html>
